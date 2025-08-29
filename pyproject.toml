@@ -1,0 +1,149 @@
+[project]
+name = "performance"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+aiohttp = [
+    "aiohttp>=3.12.15",
+    "aiomisc>=17.9.4",
+    "asyncpg>=0.30.0",
+    "redis>=6.4.0",
+    "uvloop>=0.21.0",
+]
+dev = [
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
+    "ruff>=0.12.11",
+]
+fastapi = [
+    "asyncpg>=0.30.0",
+    "fastapi>=0.116.1",
+    "granian>=2.5.1",
+    "gunicorn>=23.0.0",
+    "pydantic>=2.11.7",
+    "redis>=6.4.0",
+    "uvicorn[standard]>=0.35.0",
+    "uvloop>=0.21.0",
+]
+litestar = [
+    "asyncpg>=0.30.0",
+    "granian>=2.5.1",
+    "gunicorn>=23.0.0",
+    "litestar>=2.17.0",
+    "redis>=6.4.0",
+    "uvicorn[standard]>=0.35.0",
+    "uvloop>=0.21.0",
+]
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+coreutils = { git = "https://github.com/endrex-net/coreutils.git", tag = "v0.0.7" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+python_files = "test_*"
+python_functions = "test_*"
+python_classes = "TestSuite*"
+addopts = "-p no:cacheprovider"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+skip_covered = false
+skip_empty = true
+omit = [
+    "*/migrations/*",
+    "*/__main__.py",
+]
+exclude_also = [
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == __main__:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+    "pass",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["performance"]
+command_line = "-m pytest"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.ruff]
+line-length = 88
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+]
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = [
+    "BLE",
+    "C90",
+    "E",
+    "F",
+    "G",
+    "I",
+    "ICN",
+    "ISC",
+    "PLE",
+    "Q",
+    "RUF006",
+    "RUF100",
+    "T10",
+    "T20",
+    "TID",
+    "UP",
+    "W",
+]
+ignore = ["ISC001"]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["performance", "tests"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = false
+no_implicit_optional = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+
+[[tool.mypy.overrides]]
+module = [
+    "apscheduler.*",
+    "asyncpg.*",
+    "binance.*",
+]
+ignore_missing_imports = true

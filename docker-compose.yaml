@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+      POSTGRES_DB: benchdb
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d benchdb"]
+      interval: 10s
+      timeout: 20s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "no"]
+
+  app_aiohttp:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: Dockerfile.aiohttp
+    environment:
+      DATABASE_URL: postgresql://bench:bench@postgres:5432/benchdb
+      REDIS_URL: redis://redis:6379/0
+      UVLOOP: "1"
+      CONN_POOL_SIZE: "50"
+      REDIS_POOL_SIZE: "100"
+    depends_on: [postgres, redis]
+    ports: ["8001:8000"]
+    command: >
+      bash -lc "
+      python -m performance.db_init &&
+      python -m performance.server_aiohttp
+      "
+
+  app_litestar:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: Dockerfile.litestar
+    environment:
+      DATABASE_URL: postgresql://bench:bench@postgres:5432/benchdb
+      REDIS_URL: redis://redis:6379/0
+      UVLOOP: "1"
+      CONN_POOL_SIZE: "50"
+      REDIS_POOL_SIZE: "100"
+    depends_on: [postgres, redis]
+    ports: ["8002:8000"]
+    command: >
+      bash -lc "
+      python -m performance.db_init &&
+      granian --host 0.0.0.0 --port 8000 --workers 4 --interface asgi performance.server_litestar:app
+      "
+
+  app_fastapi:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    environment:
+      DATABASE_URL: postgresql://bench:bench@postgres:5432/benchdb
+      REDIS_URL: redis://redis:6379/0
+      UVLOOP: "1"
+      CONN_POOL_SIZE: "50"
+      REDIS_POOL_SIZE: "100"
+    depends_on: [postgres, redis]
+    ports: ["8003:8000"]
+    command: >
+      bash -lc "
+      python -m performance.db_init &&
+      granian --host 0.0.0.0 --port 8000 --workers 4 --interface asgi performance.server_fastapi:app
+      "
