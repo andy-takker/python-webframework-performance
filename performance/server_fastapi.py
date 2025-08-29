@@ -53,7 +53,7 @@ async def cache_get_route(
     return {"key": key, "value": val}
 
 
-@router.get("/cache/set")
+@router.post("/cache/set")
 async def cache_set_route(
     cache: FromDishka[Cache],
     key: str = Query("k"),

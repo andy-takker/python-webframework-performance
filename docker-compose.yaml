@@ -32,7 +32,7 @@ services:
     ports: ["8001:8000"]
     command: >
       bash -lc "
-      python -m performance.db_init &&
+      python -m performance.infra.db_init &&
       python -m performance.server_aiohttp
       "
 
@@ -51,8 +51,8 @@ services:
     ports: ["8002:8000"]
     command: >
       bash -lc "
-      python -m performance.db_init &&
-      granian --host 0.0.0.0 --port 8000 --workers 4 --interface asgi performance.server_litestar:app
+      python -m performance.infra.db_init &&
+      uvicorn performance.server_litestar:app --host 0.0.0.0 --port 8000 --workers 4
       "
 
   app_fastapi:
@@ -70,6 +70,7 @@ services:
     ports: ["8003:8000"]
     command: >
       bash -lc "
-      python -m performance.db_init &&
-      granian --host 0.0.0.0 --port 8000 --workers 4 --interface asgi performance.server_fastapi:app
+      python -m performance.infra.db_init &&
+      uvicorn --host 0.0.0.0 --port 8000 --workers 4 performance.server_fastapi:app
+      # granian --host 0.0.0.0 --port 8000 --workers 4 --interface asgi performance.server_fastapi:app
       "

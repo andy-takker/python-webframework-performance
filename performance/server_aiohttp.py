@@ -94,7 +94,7 @@ class REST(AIOHTTPService):
                 web.get("/db/one", handle_db_one),
                 web.post("/db/insert", handle_db_insert),
                 web.get("/cache/get", handle_cache_get),
-                web.get("/cache/set", handle_cache_set),
+                web.post("/cache/set", handle_cache_set),
                 web.get("/mix", handle_mix),
             ]
         )

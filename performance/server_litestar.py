@@ -42,7 +42,7 @@ async def cget(cache: FromDishka[Cache], key: str = "k") -> dict:
     return {"key": key, "value": val}
 
 
-@get("/cache/set")
+@post("/cache/set")
 @inject
 async def cset(cache: FromDishka[Cache], key: str = "k", value: str = "v") -> dict:
     await cache.set(key, value, 60)
