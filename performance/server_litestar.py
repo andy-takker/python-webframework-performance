@@ -1,8 +1,14 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 import uvloop
+from dishka import FromDishka, make_async_container
+from dishka.integrations.litestar import inject, setup_dishka
 from litestar import Litestar, get, post
 from litestar.response import Response
 
-from performance.infra import cache_get, cache_set, db_get_one, db_insert, infra
+from performance.infra.cache import Cache, RedisConfig, RedisProvider
+from performance.infra.database import Database, DatabaseConfig, DatabaseProvider
 
 
 @get("/ping")
@@ -11,52 +17,74 @@ async def ping() -> dict:  # type: ignore[override]
 
 
 @get("/db/one")
-async def db_one(id: int = 1) -> Response:
-    data = await db_get_one(id)
+@inject
+async def db_one(
+    db: FromDishka[Database],
+    id: int = 1,
+) -> Response:
+    data = await db.get_one(id)
     if not data:
         return Response({"error": "not found"}, status_code=404)
     return Response(data)
 
 
 @post("/db/insert")
-async def db_ins(data: str = "x" * 64) -> dict:
-    new_id = await db_insert(data)
+@inject
+async def db_ins(db: FromDishka[Database], data: str = "x" * 64) -> dict:
+    new_id = await db.insert(data)
     return {"id": new_id}
 
 
 @get("/cache/get")
-async def cget(key: str = "k") -> dict:
-    val = await cache_get(key)
+@inject
+async def cget(cache: FromDishka[Cache], key: str = "k") -> dict:
+    val = await cache.get(key)
     return {"key": key, "value": val}
 
 
 @get("/cache/set")
-async def cset(key: str = "k", value: str = "v") -> dict:
-    await cache_set(key, value, 60)
+@inject
+async def cset(cache: FromDishka[Cache], key: str = "k", value: str = "v") -> dict:
+    await cache.set(key, value, 60)
     return {"ok": True}
 
 
 @get("/mix")
-async def mix(id: int = 1) -> dict:
-    data = await db_get_one(id)
-    cached = await cache_get("mix:" + str(id))
-    if cached is None:
-        await cache_set("mix:" + str(id), data["payload"] if data else "none", 30)
-    return {"db": data, "cached": cached}
+@inject
+async def mix(
+    database: FromDishka[Database],
+    cache: FromDishka[Cache],
+    id: int = 1,
+) -> dict:
+    cached_data = await cache.get("mix:" + str(id))
+    if cached_data is None:
+        data = await database.get_one(id)
+        cached_data = data["payload"] if data else "none"
+        await cache.set("mix:" + str(id), cached_data, 30)
+    return {"data": cached_data}
 
 
-async def on_startup() -> None:
-    await infra.startup()
+def create_app() -> Litestar:
+    uvloop.install()
+
+    database_config = DatabaseConfig()
+    redis_config = RedisConfig()
+    container = make_async_container(
+        DatabaseProvider(config=database_config),
+        RedisProvider(config=redis_config),
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
+        yield
+        await container.close()
+
+    app = Litestar(
+        lifespan=[lifespan],
+        route_handlers=[ping, db_one, db_ins, cget, cset, mix],
+    )
+    setup_dishka(container, app)
+    return app
 
 
-async def on_shutdown() -> None:
-    await infra.shutdown()
-
-
-uvloop.install()
-
-app = Litestar(
-    route_handlers=[ping, db_one, db_ins, cget, cset, mix],
-    on_startup=[on_startup],
-    on_shutdown=[on_shutdown],
-)
+app = create_app()
